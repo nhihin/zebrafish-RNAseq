@@ -9,22 +9,40 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Stringtie assembly
+## Tools used
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+- [**StringTie**](https://ccb.jhu.edu/software/stringtie/index.shtml), which assembles RNA-seq alignments into potential transcripts. This step was already done by Tim, so I am starting with the `merged.gtf` file, which contains both novel and known (with Ensembl ID) transcripts. 
+- [**Salmon**](https://combine-lab.github.io/salmon/), for quantifying the expression of transcripts from RNA-seq data.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r cars}
-summary(cars)
+## Use salmon to quantify transcripts
+
+
+1. Used **gffread** to get the transcriptomic sequences (fasta format) from the `merged.gtf` assembled using **stringtie**. 
+```{r engine='bash', eval=FALSE}
+Downloads/gffread-0.9.8c/gffread -w merged_transcripts_complete.fa -g ~/Downloads/Danio_rerio.GRCz10.dna.toplevel.fa ~/4_stringtie/merged.gtf
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+I got the following errors. Some others ([here](http://seqanswers.com/forums/showthread.php?t=15196)  and [here](https://groups.google.com/forum/#!topic/rna-star/ECOdW3bGKIY)) had the same problem, and just removed these sequences from the gtf manually/using a script, so that's what I did. I saved the new file as `merged_transcripts_complete.fa`.
+```{r eval=FALSE}
+# Error (GFaSeqGet): end coordinate (9807) cannot be larger than sequence length 9804
+# Error (GFaSeqGet): end coordinate (1013) cannot be larger than sequence length 1000
+# Error (GFaSeqGet): end coordinate (35581) cannot be larger than sequence length 35575
+# Error (GFaSeqGet): end coordinate (35581) cannot be larger than sequence length 35575
+# Error (GFaSeqGet): end coordinate (12095) cannot be larger than sequence length 12094
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+2. Build salmon index:
+```{r eval=FALSE}
+Downloads/Salmon-latest_linux_x86_64/bin/salmon index -t merged_transcripts_complete.fa -i transcripts_index
+```
+
+3. Ran my `salmon.sh` script from within the `trimmedFastq` directory. I used version 0.8.2 of **salmon** and ran it in quasi-mapping mode. 
+```{r eval=FALSE, engine='bash'}
+#!/bin/bash
+for firstpair in *_trim1.fastq.gz
+do
+  pairID="${firstpair%%_trim1*}"
+  ../Downloads/Salmon-latest_linux_x86_64/bin/salmon quant -i ../transcripts_index -l A -1 ${pairID}_trim1.fastq.gz -2 ${pairID}_trim2.fastq.gz -o ${pairID}_transcripts_quant --numBootstraps 100
+```
+
