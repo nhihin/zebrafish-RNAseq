@@ -11,7 +11,7 @@
 ## StringTie for transcript assembly
 ## featureCounts for gene-level quantification of trimmed reads
 
-# Setting Up
+# Setting Up 
 ## Module loading
 . /opt/shared/Modules/3.2.7/init/bash
 module load gnu/4.9.2
@@ -30,7 +30,10 @@ ASSEMDATA=$base/assembledData
 QC_RAW=$RAWDATA/fastqc_reports
 QC_TRIMMED=$TRIMDATA/fastqc_reports
 
-## Programs
+SCRIPTS=$base/scripts
+ALIGN_SLURM_HEADER=$base/scripts/starAlignment.sh
+
+## Programs (location on Phoenix)
 AdapterRemoval=/data/biohub/local/adapterremoval/build/AdapterRemoval
 salmon=/data/biohub/local/Salmon-0.8.2_linux_x86_64/bin/salmon
 featureCounts=/data/biohub/local/subread-1.5.2-Linux-x86_64/bin/featureCounts
@@ -39,7 +42,7 @@ module load STAR/2.5.1a-foss-2015b
 module load SAMtools/1.3.1-GCC-5.3.0-binutils-2.25 
 module load fastqc/0.11.4
 
-## Threads (usually one thread per sample)
+## Threads (usually use one thread per sample)
 threads=32
 
 ## Transcript references for zebrafish 
@@ -56,13 +59,16 @@ z10_star=/data/biohub/Refs/zebrafish/STAR_index
 #### /data/biohub/local/Salmon-0.8.2_linux_x86_64/bin/salmon index -t /data/biohub/Refs/zebrafish/Danio_rerio.GRCz10.cdna.all.fa.gz -i /data/biohub/Refs/zebrafish/salmon_index
 z10_salmon=/data/biohub/Refs/zebrafish/salmon_index
 
+
+
+
 # 0. FastQC for raw data
 mkdir -p $QC_RAW
 cd $RAWDATA
 fastqc *.fastq.gz -o $QC_RAW/
 
-# 1. Adapter trimming with AdapterRemoval
-## Note: paired-end data should be named like *_R1.fastq.gz and *_R2.fastq.gz
+# 1.1. Adapter trimming with AdapterRemoval
+## Note: paired-end files should be named like *_R1.fastq.gz and *_R2.fastq.gz
 mkdir -p $TRIMDATA
 cd $RAWDATA
 for firstpair in *R1.fastq.gz
@@ -76,7 +82,7 @@ do
 	--trimqualities --trimns --minquality 10 --minlength 25
 done
 
-## FastQC for trimmed data
+## 1.2. FastQC for trimmed data
 mkdir -p $QC_TRIMMED
 cd $TRIMDATA
 fastqc *.fastq.gz -o $QC_TRIMMED
@@ -120,10 +126,12 @@ do
 done
 
 # 3.1. Gene level quantification of sorted and indexed bam files using featureCounts
-for bam in *Aligned.sortedByCoord.out.bam
-do
-	$featureCounts -p -a $z10_gtf -t exon -g gene_id -o counts.txt ${bam}
-done
+cd $ALIGNDATA
+
+sampleList=`find $ALIGNDATA -name "*Aligned.sortedByCoord.out.bam" | tr '\n' ' '`
+$featureCounts -Q 10 -s 2 -T $threads -p -a $z10_gtf -o $QUANTDATA_GENE/project_genes1.out $sampleList
+cut -f1,7- $QUANTDATA_GENE/project_genes1.out | sed 1d > $QUANTDATA_GENE/project_genes1.txt
+
 
 # 3.2. Transcript assembly of each sorted bam file with stringtie
 mkdir -p $ASSEMDATA
