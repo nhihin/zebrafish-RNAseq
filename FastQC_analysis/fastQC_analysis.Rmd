@@ -1,0 +1,190 @@
+---
+title: "K97Gfs FastQC Analysis"
+author: "Nhi Hin"
+date: "12/06/2017"
+output: 
+  html_document: 
+    fig_width: 10
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(fastqcReports)
+library(data.table)
+library(pander)
+library(readr)
+library(magrittr)
+library(dplyr)
+library(tibble)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(scales)
+library(plotly)
+theme_set(theme_bw())
+```
+
+FastQC is a set of tests that can be used to assess the quality of RNA-seq data. 
+At each step of an RNA-seq pipeline, the number of low-quality reads is reduced:
+
+1. **Trimming of raw data:** This step involves filtering the raw reads based on a cutoff quality score (reads with quality > 20 are retained) and length (reads with length > 35 bp are retained). The adapter sequences are also removed in this step.
+2. **Removal of rRNA sequences:** This step involves the removal of rRNA sequences. This is a problem with this particular dataset, as several libraries have significant levels of rRNA sequences, likely due to inadequate rRNA-removal during library preparation. If this step is not completed, the downstream differential gene expression analysis might detect these rRNA sequences as being differentially expressed, even when this is not true biologically. 
+3. **Alignment of rRNA-removed sequences to reference zebrafish genome:** Reads that do not align are removed. 
+4. **Deduplication of aligned reads:** Reads that do not uniquely align, or appear to be optical or PCR duplicates, are removed.
+5. **Removal of DNA contamination sequences:** Reads that appear to be DNA contamination are removed.
+
+## Setting Up
+At each step of the RNA-seq pipeline, FastQC was run to assess the quality of the reads. 
+First, we extract the FastQC information from the FastQC reports located at `/data/biohub/` on Phoenix.
+```{r warning=FALSE}
+dataDir <- "/Volumes/biohub/2017_Lardelli_K97Gfs"
+fastQC_0_raw <- list.files(file.path(dataDir, "0_rawData", "fastqc"), pattern = ".zip", full.names = TRUE) %>% getFastqcData()
+fastQC_1_trim <-list.files(file.path(dataDir, "1_trimmedData", "fastqc"), pattern = ".zip", full.names = TRUE) %>% getFastqcData()
+fastQC_2_rRNArem <- list.files(file.path(dataDir, "2_rRNAremovedData", "fastqc"), pattern = ".zip", full.names = TRUE) %>% getFastqcData()
+fastQC_3_aligned <- list.files(file.path(dataDir, "3_alignedData", "fastqc"), pattern = ".zip", full.names = TRUE) %>% getFastqcData()
+fastQC_4_dedup <- list.files(file.path(dataDir, "4_dedupData", "fastqc"), pattern = ".zip", full.names = TRUE) %>% getFastqcData()
+fastQC_5_clean <- list.files(file.path(dataDir, "5_cleanRData", "fastqc"), pattern = ".zip", full.names = TRUE) %>% getFastqcData()
+fastQC_all <- as.list(fastQC_0_raw, fastQC_1_trim, fastQC_2_rRNArem, fastQC_3_aligned, fastQC_4_dedup, fastQC_5_clean)
+```
+
+## Summary Plots
+Summary plots can be produced to summarise the `PASS`, `FAIL` or `WARNING` statuses for each of the FastQC tests for each RNA-seq library:
+```{r echo=FALSE, warning=FALSE}
+fastqcReports::plotSummary(fastQC_0_raw) + theme(aspect.ratio=1/2, axis.text.x = element_text(size=6)) 
+fastqcReports::plotSummary(fastQC_1_trim) + theme(aspect.ratio=1/2, axis.text.x = element_text(size=6)) 
+fastqcReports::plotSummary(fastQC_2_rRNArem) + theme(aspect.ratio=1/2, axis.text.x = element_text(size=6)) 
+fastqcReports::plotSummary(fastQC_3_aligned) + theme(aspect.ratio=1/2, axis.text.x = element_text(size=8)) 
+fastqcReports::plotSummary(fastQC_4_dedup) + theme(aspect.ratio=1/2, axis.text.x = element_text(size=8)) 
+fastqcReports::plotSummary(fastQC_5_clean) + theme(aspect.ratio=1/2, axis.text.x = element_text(size=8)) 
+```
+
+### Highlights
+
+**RAW DATA**
+
+- Several RNA-seq libraries have `WARNING` statuses for their `Per base sequence quality`. 
+- Several RNA-seq libraries have `WARNING` statuses for their `Per sequence GC content` (`1` read 2; `3` read 2; `7` reads 1 and 2; `8` reads 1 and 2)
+- Several RNA-seq libraries have `WARNING` statuses for their `Sequence Length Distribution`.
+- All RNA-seq libraries have `WARNING` statuses for their `Sequence Duplication Levels` and three of these libraries, corresponding to read `1` in library `12`, and reads `1` and `2` for library `6`. Interestingly, library `6` also has a significantly larger number of reads compared to the other libraries.
+- All RNA-seq libraries have `WARNING` statuses for their `Overrepresented sequences`.
+- Several RNA-seq libraries have `FAIL` statuses for their `Adapter Content`, indicating that these still need to be removed.
+- All RNA-seq libraries have `FAIL` statuses for their `Kmer Content`. 
+
+**TRIMMED DATA**
+
+- Trimming data has changed the result of `Per base sequence quality` to `PASS` for all RNA-seq libraries. This is as expected, as the trimming step also includes a quality-filtering step to filter out all reads with quality score < 20. 
+- Trimming data has successfully removed the adapter sequences in the raw RNA-seq libraries. 
+- Trimming data has apparently changed the `Sequence Duplication Levels` status of library `12`, read `1` from `FAIL` to `WARNING`.
+- The `per base sequence content` has a `FAIL` status with all samples.
+- GC content is unaffected by trimming. 
+- Trimming data has resulted in several `PASS` statuses for `Sequence Length Distribution` changing into `WARNING` statuses. 
+
+**rRNA-REMOVED DATA**
+
+- No change to quality check statuses, although the number of reads has slightly decreased (see plot later).
+
+**ALIGNED DATA**
+
+- Libraries `10` and `12` now have `WARNING` statuses for `Per Sequence GC Content`. This is strange, because both of these libraries had a `PASS` status earlier. In addition, all libraries which had `WARNING` statuses for this test now have `PASS` status. It is important to note that the FastQC on the aligned data was run using the `mapped_bam` mode on FastQC instead of `fastq`, which assesses the quality of the mapped reads on the .bam file. 
+- All libraries now have a `PASS` status for `Sequence Duplication Levels` (previously several libraries had `WARNING` status).
+- Several libraries still have `WARNING` statuses for `Overrepresented Sequences`. However, this is an improvement over before where all libraries had the `WARNING` status. It is likely that many overrepresented sequences didn't align adequately to the reference genome, so were discarded. 
+
+**DEDUPLICATED DATA**
+
+- All libraries now have `PASS` statuses for `Overrepresented Sequences`. 
+- Library `6` now has a GC content warning (previously was `PASS` in last step).
+
+**DNA-REMOVED DATA**
+
+- `Per Sequence GC content` has changed from a `PASS` to `WARNING` in a few libraries. 
+
+
+## Read Totals
+
+The number of reads lost/discarded at each step are shown in the following table and plot.
+```{r echo = FALSE, warning = FALSE}
+# Get the total reads at each step of RNAseq pipeline from each set of fastqc reports, and reformat a little. 
+# The first three total reads in reads_raw, reads_trimmed and reads_rrr need to be multiplied by 2 since they are
+# from FastQC for a single pair of the paired-end library. 
+reads_raw <- readTotals(fastQC_0_raw) %>%
+  dplyr::rename(Raw = Total_Sequences, RNAseq_Library = Filename) %>%
+  magrittr::extract(c(seq(from = 1, to = 24, by = 2)),) %>%
+  mutate(Raw = Raw*2)
+
+reads_trimmed <- readTotals(fastQC_1_trim) %>%
+  dplyr::rename(Trimmed = Total_Sequences) %>%
+  magrittr::extract(c(seq(from = 1, to = 24, by = 2)),) %>%
+  mutate(Trimmed = Trimmed*2)
+
+reads_rrr <- readTotals(fastQC_2_rRNArem) %>%
+  dplyr::rename(rRNA_removed = Total_Sequences) %>%
+  magrittr::extract(c(seq(from = 1, to = 24, by = 2)),) %>%
+  mutate(rRNA_removed = rRNA_removed*2)
+
+reads_aligned <- readTotals(fastQC_3_aligned) %>%
+  dplyr::rename(Aligned = Total_Sequences)
+
+reads_dedup <- readTotals(fastQC_4_dedup) %>%
+  dplyr::rename(Deduplicated = Total_Sequences)
+
+reads_clean <- readTotals(fastQC_5_clean) %>%
+  dplyr::rename(DNA_removed = Total_Sequences)
+
+reads_all <- bind_cols(reads_raw, reads_trimmed[, 2], reads_rrr[, 2], reads_aligned[, 2], reads_dedup[, 2], reads_clean[, 2]) %>%
+  as.data.frame() %>%
+  mutate(
+    Raw = comma(Raw), 
+    Trimmed = comma(Trimmed),
+    rRNA_removed = comma(rRNA_removed),
+    Aligned = comma(Aligned),
+    Deduplicated = comma(Deduplicated),
+    DNA_removed = comma(DNA_removed)
+  ) 
+  pander(reads_all, split.table = Inf, justify = "lrrrrrr")
+  
+reads_all_nocomma <- bind_cols(reads_raw, reads_trimmed[, 2], reads_rrr[, 2], reads_aligned[, 2], reads_dedup[, 2], reads_clean[, 2]) %>% melt(id.vars = "RNAseq_Library", variable.name = "RNAseq_pipeline_step", value.name = "Number_of_reads")
+
+ggplot(data=reads_all_nocomma, aes(x = RNAseq_Library, y = Number_of_reads/1e6, fill = RNAseq_pipeline_step)) + 
+  geom_bar(stat = "identity", position = position_dodge(), alpha = 0.5) +
+  ylab("Number of reads (millions)") + 
+  xlab("RNA-seq library ID") +
+  scale_x_discrete(labels=c("1", "10", "11", "12", "2", "3", "4", "5", "6", "7", "8", "9")) +
+  scale_fill_discrete(name="RNA-seq\npipeline step")
+```
+
+
+## HISAT2 Logs
+Additional information about the reads that have aligned to the reference zebrafish genome can be obtained from the **HISAT2** log files. We can import information including the total aligned reads, total unique aligned reads, total unaligned reads, and alignment rate:
+```{r echo=FALSE}
+hisat2logs_3_aligned <- list.files(file.path(dataDir, "3_alignedData", "info"), pattern = ".info", full.names = TRUE) %>% 
+  importHisat2Logs() %>%
+  extract(, c("Filename", "Total_Reads", "Unique_In_Pairs", "Not_Aligned", "Alignment_Rate")) %>%
+  as.data.frame()
+
+pander(hisat2logs_3_aligned, split.table = Inf, justify = "lrrrr")
+```
+
+
+
+## GC Content Plots
+The effect of each RNA-seq processing step on the GC content of the reads is shown in the following plots. 
+
+```{r echo=FALSE}
+fastqcReports::plotGcContent(fastQC_0_raw) + guides(colour = FALSE)
+fastqcReports::plotGcContent(fastQC_1_trim) + guides(colour = FALSE)
+fastqcReports::plotGcContent(fastQC_2_rRNArem) + guides(colour = FALSE)
+```
+The three plots above represent the `per base GC content` of raw, trimmed and rRNA-removed reads. These plots show a substantial GC peak at approximately ~62 bp and another smaller peak at ~80 bp. 
+
+```{r}
+fastqcReports::plotGcContent(fastQC_3_aligned) + guides(colour = FALSE)
+```
+After alignment to the reference genome, both peaks decrease in size and the smaller peak at ~80 bp has almost completely disappeared. 
+
+```{r echo=FALSE}
+fastqcReports::plotGcContent(fastQC_4_dedup) + guides(colour = FALSE)
+fastqcReports::plotGcContent(fastQC_5_clean) + guides(colour = FALSE)
+```
+Further removal of PCR and optical duplicates, along with DNA-contamination, leads to the GC content of most reads approaching the theoretical GC content shape. 
+
+
