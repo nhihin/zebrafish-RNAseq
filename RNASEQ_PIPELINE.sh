@@ -30,14 +30,14 @@ RAW=`sbatch 0_RAW_FASTQC.sh`
 RAW_SLURM_ID=$(echo "$RAW" | sed 's/Submitted batch job //')
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#	1. TRIMMING + QUALITY CHECK
+# 1. TRIMMING + QUALITY CHECK
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 TRIM=`sbatch --dependency=afterok:${RAW_SLURM_ID} 1_TRIM_FASTQC.sh`
 TRIM=`sbatch 1_TRIM_FASTQC.sh`
 TRIM_SLURM_ID=$(echo "$TRIM" | sed 's/Submitted batch job //')
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#	2. rRNA REMOVAL 									
+# 2. rRNA REMOVAL 									
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 RRNA=`sbatch --dependency=afterok:${TRIM_SLURM_ID} 2_RRNAREMOVAL_FASTQC.sh`
 RRNA_SLURM_ID=$(echo "$RRNA" | sed 's/Submitted batch job //')
