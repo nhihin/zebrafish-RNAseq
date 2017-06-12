@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #########################################################################################
-# 						Paired-End RNA-seq Pipeline for Phoenix HPC 					#
+# 				       	    Paired-End RNA-seq Pipeline for Phoenix HPC         				    	#
 #########################################################################################
 
 ## IMPORTANT:
@@ -24,56 +24,56 @@
 source RNASEQ_CONFIG.sh
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# 								0. RAW DATA QUALITY CHECK								#
+# 0. RAW DATA QUALITY CHECK								
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 RAW=`sbatch 0_RAW_FASTQC.sh`
 RAW_SLURM_ID=$(echo "$RAW" | sed 's/Submitted batch job //')
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#							 1. TRIMMING + QUALITY CHECK								#
+#	1. TRIMMING + QUALITY CHECK
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 TRIM=`sbatch --dependency=afterok:${RAW_SLURM_ID} 1_TRIM_FASTQC.sh`
 TRIM=`sbatch 1_TRIM_FASTQC.sh`
 TRIM_SLURM_ID=$(echo "$TRIM" | sed 's/Submitted batch job //')
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#									 2. rRNA REMOVAL 									#
+#	2. rRNA REMOVAL 									
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 RRNA=`sbatch --dependency=afterok:${TRIM_SLURM_ID} 2_RRNAREMOVAL_FASTQC.sh`
 RRNA_SLURM_ID=$(echo "$RRNA" | sed 's/Submitted batch job //')
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#					3. ALIGN rRNA-REMOVED READS TO REFERENCE GENOME 					#
+#	3. ALIGN rRNA-REMOVED READS TO REFERENCE GENOME 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 ALIGN=`sbatch --dependency=afterok:${RRNA_SLURM_ID} 3_ALIGN_SAMTOBAM_INDEX.sh`
 ALIGN_SLURM_ID=$(echo "$ALIGN" | sed 's/Submitted batch job //')
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#				3. GENE EXPRESSION QUANTIFICATION AT TRANSCRIPT LEVEL 					#
+#	3. GENE EXPRESSION QUANTIFICATION AT TRANSCRIPT LEVEL 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 QUANT_TR=`sbatch --dependency=afterok:${RRNA_SLURM_ID} 3_SALMON.sh`
 QUANT_TR_SLURM_ID=$(echo "$QUANT_TR" | sed 's/Submitted batch job //')
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# 						4. DEDUPLICATION OF ALIGNED BAM FILES 							#
+# 4. DEDUPLICATION OF ALIGNED BAM FILES 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 DEDUP=`sbatch --dependency=afterok:${ALIGN_SLURM_ID} 4_DEDUPLICATION_UNIQUE_INDEX.sh`
 DEDUP_SLURM_ID=$(echo "$DEDUP" | sed 's/Submitted batch job //')
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# 				5. REMOVING DNA CONTAMINATION FROM DEDUPLICATED BAM FILES				#
+# 5. REMOVING DNA CONTAMINATION FROM DEDUPLICATED BAM FILES	
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 CLEAN=`sbatch --dependency=afterok:${DEDUP_SLURM_ID} 5_RNACLEAN_FASTQC.sh`
 CLEAN_SLURM_ID=$(echo "$CLEAN" | sed 's/Submitted batch job //')
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# 						6. QUANTIFICATION OF GENE EXPRESSION							#
+# 6. GENE EXPRESSION QUANTIFICATION AT GENE LEVEL
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 QUANT_GENE=`sbatch --dependency=afterok:${CLEAN_SLURM_ID} 6_FEATURECOUNTS.sh`
 QUANT_GENE_SLURM_ID=$(echo "$CLEAN" | sed 's/Submitted batch job //')
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# 									SLURM JOB IDs										#
+# SLURM JOB IDs	
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~SLURM Job IDs~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "0 - Quality check raw data: $RAW_SLURM_ID"
