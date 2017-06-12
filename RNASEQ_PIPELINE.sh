@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #########################################################################################
-# 				       	    Paired-End RNA-seq Pipeline for Phoenix HPC         				    	#
+# Paired-End RNA-seq Pipeline for Phoenix HPC 
 #########################################################################################
 
 ## IMPORTANT:
@@ -43,13 +43,13 @@ RRNA=`sbatch --dependency=afterok:${TRIM_SLURM_ID} 2_RRNAREMOVAL_FASTQC.sh`
 RRNA_SLURM_ID=$(echo "$RRNA" | sed 's/Submitted batch job //')
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#	3. ALIGN rRNA-REMOVED READS TO REFERENCE GENOME 
+# 3. ALIGN rRNA-REMOVED READS TO REFERENCE GENOME
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 ALIGN=`sbatch --dependency=afterok:${RRNA_SLURM_ID} 3_ALIGN_SAMTOBAM_INDEX.sh`
 ALIGN_SLURM_ID=$(echo "$ALIGN" | sed 's/Submitted batch job //')
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#	3. GENE EXPRESSION QUANTIFICATION AT TRANSCRIPT LEVEL 
+# 3. GENE EXPRESSION QUANTIFICATION AT TRANSCRIPT LEVEL
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 QUANT_TR=`sbatch --dependency=afterok:${RRNA_SLURM_ID} 3_SALMON.sh`
 QUANT_TR_SLURM_ID=$(echo "$QUANT_TR" | sed 's/Submitted batch job //')
