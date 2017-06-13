@@ -1,18 +1,18 @@
 #########################################################################################
-# Paired-End RNA-seq Pipeline for Phoenix HPC 
+# 						Paired-End RNA-seq Pipeline for Phoenix HPC 					#
 #########################################################################################
 
 threads=16
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Setup 
+# 										 Setup 											#
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 DATA=/data/biohub/2017_Lardelli_K97Gfs #All data here
 LOCAL=/data/biohub/local #Local programs
 REFS=/data/biohub/Refs/zebrafish #Change if not using zebrafish.
 
 #---------------------------------------------------------------------------------------#
-# Data Directories 
+# 									Data Directories 									#
 #---------------------------------------------------------------------------------------#
 # Note: All raw paired-end fastq files should be in $RAWDATA/fastq and named like 
 # `*_R1.fastq.gz` and `*_R2.fastq.gz`.
@@ -35,7 +35,7 @@ DIRS=($TRIMDATA $RRRDATA $ALIGNDATA $DEDUPDATA $CLEANDATA \
 for dir in ${DIRS[*]}; do mkdir -pv $dir; done
 
 #---------------------------------------------------------------------------------------#
-# Rename raw data 									#
+# 									Rename raw data 									#
 #---------------------------------------------------------------------------------------#
 # Rename paired-end raw fastq files to have an ID number in front. This is required to 
 # use the SLURM Job Arrays to run jobs in parallel. This following bit is only run once.
@@ -48,7 +48,7 @@ if [ ! -d "$RAWDATA/fastqc" ]; then
 	ID=1
 	for firstread in *_R1.fastq.gz
 	do
-		mv firstread ${ID}_${firstread}
+		mv $firstread ${ID}_${firstread}
 		ID=$(expr $ID + 1)
 	done
 
@@ -61,7 +61,7 @@ if [ ! -d "$RAWDATA/fastqc" ]; then
 fi
 
 #---------------------------------------------------------------------------------------#
-# Create additional directories to organise data 
+# 					Create additional directories to organise data 						#
 #---------------------------------------------------------------------------------------#
 # 0. Quality checking of raw data
 mkdir -pv $RAWDATA/fastqc
@@ -101,7 +101,7 @@ mkdir -pv $QUANTDATA_GENE
 mkdir -pv $QUANTDATA_TRANSCRIPT
 
 #---------------------------------------------------------------------------------------#
-# Zebrafish References and Indexes 		
+# 							Zebrafish References and Indexes 							#
 #---------------------------------------------------------------------------------------#
 # Downloaded from: http://www.ensembl.org/info/data/ftp/index.html
 z10_gtf=$REFS/Danio_rerio.GRCz10.88.gtf
@@ -134,7 +134,7 @@ z10_rRNAindex=$REFS/rRNA_hisat2_index/Danio_rerio_rRNA_sequences_SILVA_20170524_
 z10_salmonindex=$REFS/salmon_index
 
 #---------------------------------------------------------------------------------------#
-# Programs 								
+# 										Programs 										#
 #---------------------------------------------------------------------------------------#
 module load Java/1.8.0_121
 module load fastqc/0.11.4
